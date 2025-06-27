@@ -1,44 +1,50 @@
 from flask import Flask, request, jsonify
-from pymongo import MongoClient
-from dotenv import load_dotenv
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 import os
+from dotenv import load_dotenv
 
-# Carregar variáveis do .env
+# Carregar variáveis de ambiente do .env
 load_dotenv()
 
-# Inicializa o Flask
-app = Flask(__name__)
-
-# Conexão com MongoDB
-MONGO_URI = os.getenv('MONGO_URI')
-client = MongoClient(MONGO_URI)
-db = client["speakTrainer"]
+# Conexão com o MongoDB
+uri = os.getenv("MONGO_URI")
+client = MongoClient(uri, server_api=ServerApi("1"))
+db = client["usuarios"]
 colecao = db["usuarios_autorizados"]
 
-# Rota do webhook
+# Criar app Flask
+app = Flask(__name__)
+
 @app.route("/kiwify", methods=["POST"])
-def kiwify_webhook():
+def receber_webhook():
     data = request.get_json()
-    print("📩 Webhook recebido:", data)
 
     if not data:
-        print("⚠️ Nenhum dado recebido.")
-        return jsonify({"error": "Dados ausentes"}), 400
+        return jsonify({"error": "Payload inválido ou vazio"}), 400
 
-    customer_email = data.get("customer_email")
-    status = data.get("status")
+    # Log no console (opcional)
+    print("📩 Webhook recebido:", data)
 
-    if customer_email and status:
-        doc = {
-            "email": customer_email,
-            "status": status
-        }
-        result = colecao.insert_one(doc)
-        print("✅ Documento salvo com ID:", result.inserted_id)
-        return jsonify({"message": "Dados salvos com sucesso!"}), 200
-    else:
-        print("⚠️ Campos obrigatórios ausentes")
-        return jsonify({"message": "Requisição incompleta"}), 400
+    # Extrair dados principais com fallback em caso de ausência
+    email = data.get("customer_email")
+    status = data.get("status", "indefinido")
+    subscription_status = data.get("subscription_status", "indefinido")
 
-if __name__ == "__main__":
-    app.run()
+    if not email:
+        return jsonify({"error": "E-mail não encontrado no payload"}), 400
+
+    # Salvar ou atualizar no banco
+    colecao.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "status": status,
+                "subscription_status": subscription_status,
+                "raw_data": data  # salva o payload completo
+            }
+        },
+        upsert=True
+    )
+
+    return jsonify({"message": "Email salvo com sucesso!"}), 200
