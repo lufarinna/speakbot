@@ -1,19 +1,17 @@
 from flask import Flask, request
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from dotenv import load_dotenv
+from pymongo import MongoClient
 import os
+from dotenv import load_dotenv
 
-# Carregar variáveis do .env
 load_dotenv()
 
 app = Flask(__name__)
 
-# Obter URI do MongoDB do .env
-mongo_uri = os.getenv("MONGO_URI")
-client = MongoClient(mongo_uri, server_api=ServerApi('1'))
-db = client["speaktrainer"]
-colecao = db["autorizados"]
+# Conecta ao MongoDB
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["speakTrainer"]
+colecao = db["usuarios_autorizados"]
 
 @app.route("/kiwify", methods=["POST"])
 def receber_dados():
