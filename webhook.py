@@ -1,14 +1,17 @@
 from flask import Flask, request
-import json
+from pymongo import MongoClient
+from dotenv import load_dotenv
 import os
 
-app = Flask(__name__)
-ARQUIVO = "autorizados.json"
+# Carregar variáveis de ambiente
+load_dotenv()
 
-# Cria o arquivo se não existir
-if not os.path.exists(ARQUIVO):
-    with open(ARQUIVO, "w") as f:
-        json.dump([], f)
+# Conectar ao MongoDB
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["speaktrainer"]
+collection = db["autorizados"]
+
+app = Flask(__name__)
 
 @app.route("/kiwify", methods=["POST"])
 def receber_dados():
@@ -17,14 +20,10 @@ def receber_dados():
     status = data.get("status")
 
     if email and status in ["approved", "active"]:
-        with open(ARQUIVO, "r") as f:
-            autorizados = json.load(f)
-
-        if email not in autorizados:
-            autorizados.append(email)
-            with open(ARQUIVO, "w") as f:
-                json.dump(autorizados, f)
-            print(f"✅ Novo autorizado: {email}")
+        # Verifica se já está salvo
+        if not collection.find_one({"email": email}):
+            collection.insert_one({"email": email})
+            print(f"✅ Novo autorizado salvo: {email}")
         return "Salvo", 200
 
     return "Ignorado", 200
