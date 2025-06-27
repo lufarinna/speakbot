@@ -1,31 +1,34 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from pymongo import MongoClient
-import os
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# Conecta ao MongoDB
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI = os.getenv('MONGO_URI')
 client = MongoClient(MONGO_URI)
 db = client["speakTrainer"]
 colecao = db["usuarios_autorizados"]
 
 @app.route("/kiwify", methods=["POST"])
-def receber_dados():
-    data = request.json
-    email = data.get("customer_email")
+def kiwify_webhook():
+    data = request.get_json()
+    print("📩 Webhook recebido:", data)
+
+    if not data:
+        print("⚠️ Nenhum dado recebido no corpo da requisição.")
+        return jsonify({"error": "Invalid data"}), 400
+
+    customer_email = data.get("customer_email")
     status = data.get("status")
 
-    if email and status in ["approved", "active"]:
-        if not colecao.find_one({"email": email}):
-            colecao.insert_one({"email": email})
-            print(f"✅ Novo autorizado salvo no MongoDB: {email}")
-        return "Salvo", 200
-
-    return "Ignorado", 200
-
-if __name__ == "__main__":
-    app.run()
+    if customer_email and status == "approved":
+        doc = {"email": customer_email}
+        result = colecao.insert_one(doc)
+        print("✅ Email salvo no MongoDB com ID:", result.inserted_id)
+        return jsonify({"message": "Email salvo com sucesso!"}), 200
+    else:
+        print("⚠️ Dados incompletos ou status diferente de 'approved'")
+        return jsonify({"message": "Requisição ignorada"}), 200
