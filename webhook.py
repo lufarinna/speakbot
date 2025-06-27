@@ -9,7 +9,7 @@ load_dotenv()
 # MongoDB setup
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI, server_api=ServerApi("1"))
-db = client["speaktrainer"]
+db = client["speakTrainer"]
 colecao = db["usuarios"]
 
 app = Flask(__name__)
