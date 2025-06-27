@@ -1,53 +1,47 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from pymongo import MongoClient
-from pymongo.server_api import ServerApi
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI, server_api=ServerApi("1"))
-db = client["speakTrainer"]
-colecao = db["usuarios"]
 
 app = Flask(__name__)
+client = MongoClient(os.environ["MONGO_URI"])
+db = client["speakTrainer"]
+collection = db["usuarios_autorizados"]
 
-@app.route("/kiwify", methods=["POST"])
-def receber_dados():
-    data = request.json
+@app.route('/kiwify', methods=['POST'])
+def kiwify_webhook():
+    data = request.get_json()
 
-    # Campos essenciais
-    email = data.get("customer_email")
-    status = data.get("status")
+    # Mapeia todos os campos enviados pela Kiwify
+    customer_email = data.get('customer_email')
+    status = data.get('status')
+    product_id = data.get('product_id')
+    product_name = data.get('product_name')
+    price = data.get('price')
+    purchase_date = data.get('purchase_date')
+    subscription_status = data.get('subscription_status')
+    customer_name = data.get('customer_name')
+    customer_phone = data.get('customer_phone')
 
-    if not email or not status:
-        return "Faltam campos obrigatórios", 400
-
-    documento = {
-        "customer_email": email,
-        "customer_name": data.get("customer_name"),
+    # Cria o documento completo
+    user_data = {
+        "email": customer_email,
         "status": status,
-        "subscription_status": data.get("subscription_status"),
-        "product_id": data.get("product_id"),
-        "product_name": data.get("product_name"),
-        "price": data.get("price"),
-        "purchase_date": data.get("purchase_date"),
-        "next_billing_date": data.get("next_billing_date"),
-        "cancellation_date": data.get("cancellation_date"),
-        "customer_phone": data.get("customer_phone")
+        "product_id": product_id,
+        "product_name": product_name,
+        "price": price,
+        "purchase_date": purchase_date,
+        "subscription_status": subscription_status,
+        "customer_name": customer_name,
+        "customer_phone": customer_phone
     }
 
-    # Atualiza se já existir, senão insere novo
-    colecao.update_one(
-        {"customer_email": email},
-        {"$set": documento},
+    collection.update_one(
+        {"email": customer_email},
+        {"$set": user_data},
         upsert=True
     )
 
-    print(f"✅ Dados atualizados para: {email}")
-    return "Salvo com sucesso", 200
+    return jsonify({"message": "Email salvo com sucesso!"})
 
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    app.run(debug=True)
