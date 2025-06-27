@@ -1,17 +1,19 @@
 from flask import Flask, request
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 
-# Carregar variáveis de ambiente
+# Carregar variáveis do .env
 load_dotenv()
 
-# Conectar ao MongoDB
-client = MongoClient(os.getenv("MONGO_URI"))
-db = client["speaktrainer"]
-collection = db["autorizados"]
-
 app = Flask(__name__)
+
+# Obter URI do MongoDB do .env
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri, server_api=ServerApi('1'))
+db = client["speaktrainer"]
+colecao = db["autorizados"]
 
 @app.route("/kiwify", methods=["POST"])
 def receber_dados():
@@ -20,10 +22,9 @@ def receber_dados():
     status = data.get("status")
 
     if email and status in ["approved", "active"]:
-        # Verifica se já está salvo
-        if not collection.find_one({"email": email}):
-            collection.insert_one({"email": email})
-            print(f"✅ Novo autorizado salvo: {email}")
+        if not colecao.find_one({"email": email}):
+            colecao.insert_one({"email": email})
+            print(f"✅ Novo autorizado salvo no MongoDB: {email}")
         return "Salvo", 200
 
     return "Ignorado", 200
