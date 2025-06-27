@@ -1,50 +1,45 @@
 from flask import Flask, request, jsonify
-from pymongo.mongo_client import MongoClient
+from pymongo import MongoClient
 from pymongo.server_api import ServerApi
-import os
 from dotenv import load_dotenv
+import os
 
-# Carregar variáveis de ambiente do .env
+# Carrega variáveis do .env
 load_dotenv()
 
-# Conexão com o MongoDB
-uri = os.getenv("MONGO_URI")
-client = MongoClient(uri, server_api=ServerApi("1"))
-db = client["usuarios"]
-colecao = db["usuarios_autorizados"]
+# Conexão com MongoDB Atlas
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+db = client["kiwify"]
+collection = db["assinantes"]
 
-# Criar app Flask
+# Inicializa o app Flask
 app = Flask(__name__)
 
 @app.route("/kiwify", methods=["POST"])
 def receber_webhook():
-    data = request.get_json()
+    try:
+        dados = request.get_json()
 
-    if not data:
-        return jsonify({"error": "Payload inválido ou vazio"}), 400
+        if not dados:
+            return jsonify({"error": "Requisição inválida. Nenhum dado JSON recebido."}), 400
 
-    # Log no console (opcional)
-    print("📩 Webhook recebido:", data)
+        email = dados.get("customer_email")
+        if not email:
+            return jsonify({"error": "Campo 'customer_email' é obrigatório."}), 400
 
-    # Extrair dados principais com fallback em caso de ausência
-    email = data.get("customer_email")
-    status = data.get("status", "indefinido")
-    subscription_status = data.get("subscription_status", "indefinido")
+        # Salva ou atualiza os dados no MongoDB
+        collection.update_one(
+            {"customer_email": email},
+            {"$set": dados},
+            upsert=True
+        )
 
-    if not email:
-        return jsonify({"error": "E-mail não encontrado no payload"}), 400
+        return jsonify({"message": "Dados salvos com sucesso!"}), 200
 
-    # Salvar ou atualizar no banco
-    colecao.update_one(
-        {"email": email},
-        {
-            "$set": {
-                "status": status,
-                "subscription_status": subscription_status,
-                "raw_data": data  # salva o payload completo
-            }
-        },
-        upsert=True
-    )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return jsonify({"message": "Email salvo com sucesso!"}), 200
+# Executar localmente
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
