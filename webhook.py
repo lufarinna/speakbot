@@ -1,45 +1,53 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
-# Carrega variáveis do .env
 load_dotenv()
 
-# Conexão com MongoDB Atlas
+# MongoDB setup
 MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
-db = client["kiwify"]
-collection = db["assinantes"]
+client = MongoClient(MONGO_URI, server_api=ServerApi("1"))
+db = client["speaktrainer"]
+colecao = db["usuarios"]
 
-# Inicializa o app Flask
 app = Flask(__name__)
 
 @app.route("/kiwify", methods=["POST"])
-def receber_webhook():
-    try:
-        dados = request.get_json()
+def receber_dados():
+    data = request.json
 
-        if not dados:
-            return jsonify({"error": "Requisição inválida. Nenhum dado JSON recebido."}), 400
+    # Campos essenciais
+    email = data.get("customer_email")
+    status = data.get("status")
 
-        email = dados.get("customer_email")
-        if not email:
-            return jsonify({"error": "Campo 'customer_email' é obrigatório."}), 400
+    if not email or not status:
+        return "Faltam campos obrigatórios", 400
 
-        # Salva ou atualiza os dados no MongoDB
-        collection.update_one(
-            {"customer_email": email},
-            {"$set": dados},
-            upsert=True
-        )
+    documento = {
+        "customer_email": email,
+        "customer_name": data.get("customer_name"),
+        "status": status,
+        "subscription_status": data.get("subscription_status"),
+        "product_id": data.get("product_id"),
+        "product_name": data.get("product_name"),
+        "price": data.get("price"),
+        "purchase_date": data.get("purchase_date"),
+        "next_billing_date": data.get("next_billing_date"),
+        "cancellation_date": data.get("cancellation_date"),
+        "customer_phone": data.get("customer_phone")
+    }
 
-        return jsonify({"message": "Dados salvos com sucesso!"}), 200
+    # Atualiza se já existir, senão insere novo
+    colecao.update_one(
+        {"customer_email": email},
+        {"$set": documento},
+        upsert=True
+    )
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    print(f"✅ Dados atualizados para: {email}")
+    return "Salvo com sucesso", 200
 
-# Executar localmente
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run()
