@@ -106,14 +106,17 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
 
     try:
         # Bloco de conversão de áudio usando subprocess para chamar FFmpeg diretamente
-        # Removido: audio = AudioSegment.from_file(ogg_path)
-        # Removido: audio.export(wav_path, format="wav")
-
         # Comando FFmpeg para converter OGG para WAV
-        # -i: arquivo de entrada
-        # -acodec pcm_s16le: codec de áudio PCM de 16 bits little-endian (formato esperado pelo Gemini)
-        # -ar 16000: taxa de amostragem de 16000 Hz (comum para reconhecimento de voz)
-        command = ["ffmpeg", "-i", ogg_path, "-acodec", "pcm_s16le", "-ar", "16000", wav_path]
+        # Adicionadas flags -nostats e -threads 1 para tentar resolver problemas de dependência
+        command = [
+            "ffmpeg", 
+            "-i", ogg_path, 
+            "-acodec", "pcm_s16le", 
+            "-ar", "16000", 
+            "-nostats", # Adicionado para reduzir mensagens de status
+            "-threads", "1", # Adicionado para especificar uso de um thread
+            wav_path
+        ]
         
         # Executa o comando FFmpeg de forma assíncrona
         process = await asyncio.create_subprocess_exec(
@@ -126,6 +129,7 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
 
         # Verifica se o FFmpeg retornou um erro
         if process.returncode != 0:
+            # Inclui o stderr completo para depuração
             raise Exception(f"FFmpeg falhou com erro: {stderr.decode()}")
         print(f"✅ Áudio convertido de OGG para WAV com FFmpeg via subprocess.")
 
@@ -240,5 +244,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Ultima tentativa de deploy limpo
