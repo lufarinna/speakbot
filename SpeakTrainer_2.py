@@ -20,7 +20,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- Temas disponíveis ---
+# --- Temas disponíveis ----
 TEMAS = {
     "viagem": "🛫 Viagem e Aeroporto",
     "restaurante": "🍽️ Restaurantes e Alimentação",
