@@ -1,16 +1,17 @@
 import os
 import asyncio
+import subprocess # Adicionado para chamar o FFmpeg diretamente
 from telegram import Update, Voice, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, CallbackContext
 import google.generativeai as genai
-from pydub import AudioSegment
+# from pydub import AudioSegment # Linha removida/comentada para não usar pydub
 from dotenv import load_dotenv
 from gtts import gTTS
 import random
 import re
 
-# --- Configuração de FFmpeg no Heroku ---
-AudioSegment.converter = "ffmpeg"
+# --- Configuração de FFmpeg (agora será chamado via subprocess, não pydub) ---
+# AudioSegment.converter = "ffmpeg" # Linha removida/comentada, pois era da pydub
 
 # --- Carrega variáveis do ambiente ---
 load_dotenv(dotenv_path=".env")
@@ -104,10 +105,32 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
     await voice_file.download_to_drive(ogg_path)
 
     try:
-        audio = AudioSegment.from_file(ogg_path)
-        audio.export(wav_path, format="wav")
+        # Bloco de conversão de áudio usando subprocess para chamar FFmpeg diretamente
+        # Removido: audio = AudioSegment.from_file(ogg_path)
+        # Removido: audio.export(wav_path, format="wav")
+
+        # Comando FFmpeg para converter OGG para WAV
+        # -i: arquivo de entrada
+        # -acodec pcm_s16le: codec de áudio PCM de 16 bits little-endian (formato esperado pelo Gemini)
+        # -ar 16000: taxa de amostragem de 16000 Hz (comum para reconhecimento de voz)
+        command = ["ffmpeg", "-i", ogg_path, "-acodec", "pcm_s16le", "-ar", "16000", wav_path]
+        
+        # Executa o comando FFmpeg de forma assíncrona
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        # Aguarda a conclusão do processo e captura a saída/erro
+        stdout, stderr = await process.communicate()
+
+        # Verifica se o FFmpeg retornou um erro
+        if process.returncode != 0:
+            raise Exception(f"FFmpeg falhou com erro: {stderr.decode()}")
+        print(f"✅ Áudio convertido de OGG para WAV com FFmpeg via subprocess.")
+
     except Exception as e:
-        await update.message.reply_text(f"❌ Erro ao processar o áudio: {e}")
+        await update.message.reply_text(f"❌ Erro ao processar o áudio com FFmpeg: {e}")
         if os.path.exists(ogg_path):
             os.remove(ogg_path)
         return
