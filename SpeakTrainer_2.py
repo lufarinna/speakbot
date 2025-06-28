@@ -9,10 +9,8 @@ from gtts import gTTS
 import random
 import re
 
-# --- Configuração de paths ---
-ffmpeg_bin_path = r"C:\\Users\\User\\ffmpeg\\ffmpeg\\bin"
-os.environ["PATH"] += os.pathsep + ffmpeg_bin_path
-AudioSegment.converter = r"C:\Users\User\ffmpeg\ffmpeg\bin\ffmpeg.exe"
+# --- Configuração de FFmpeg no Heroku ---
+AudioSegment.converter = "ffmpeg"
 
 # --- Carrega variáveis do ambiente ---
 load_dotenv(dotenv_path=".env")
@@ -67,7 +65,6 @@ async def menu_principal(update: Update, context: CallbackContext):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-
 # --- Gera frase com IA com base no tema ---
 async def sugerir_frase_por_tema(update: Update, context: CallbackContext, tema_chave: str):
     model = genai.GenerativeModel("gemini-1.5-flash")
@@ -121,16 +118,15 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
     prompt_text = (
         f"AVALIE a pronúncia do usuário para a frase em inglês: '{frase_original}'.\n\n"
         "Forneça:\n"
-        "1. Uma avaliação geral de 1 a 5 estrelas ⭐, sendo 1 para pronúncia irreconhecível, 2 uma pronúncia ruim, 3 uma pronúncia razoável, 4 uma pronúncia boa e 5 para pronúncia muito boa.\n"
-        "2. Pontos específicos para melhorar, detalhando fonemas ou entonação (se houver).\n"
-        "3. Uma transcrição fonética **simplificada** do que foi *realmente* dito pelo usuário, usando sons do português (ex: 'ken ai trai a greip').\n"
-        "4. Uma transcrição do que foi **ouvido textualmente** (ex: 'how much is the water melon?')\n\n"
-        "Use **negrito** para destacar elementos importantes. Mantenha os 4 itens numerados.\n"
-        "Seja motivador, mas direto."
+        "1. Uma avaliação geral de 1 a 5 estrelas ⭐.\n"
+        "2. Pontos específicos para melhorar (fonemas, entonação).\n"
+        "3. Uma transcrição fonética **simplificada** com sons do português.\n"
+        "4. Uma transcrição textual do que foi ouvido.\n\n"
+        "Use **negrito** para destacar. Seja motivador e direto."
     )
 
     try:
-        processando_msg = await update.message.reply_text("🤖 Analisando sua pronúncia... Aguarde só um instante!")
+        await update.message.reply_text("🤖 Analisando sua pronúncia... Aguarde só um instante!")
         audio_part = genai.upload_file(wav_path, mime_type="audio/wav")
         response = model.generate_content([prompt_text, audio_part])
         feedback_raw = response.text
@@ -158,7 +154,7 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
 
         await update.message.reply_text(
             f"🏆 <b>Pontuação total:</b> {total_score} pontos.\n\n"
-            "🎤  Você pode tentar repetir ou escolher um novo tema.",
+            "🎤 Você pode tentar repetir ou escolher um novo tema.",
             parse_mode="HTML"
         )
 
@@ -205,7 +201,7 @@ async def botao_callback(update: Update, context: CallbackContext):
         pontos = context.user_data.get("score", 0)
         await query.message.reply_text(f"📊 Sua pontuação atual é: {pontos} pontos.")
 
-# --- Comando /start (opcional) ---
+# --- Comando /start ---
 async def start(update: Update, context: CallbackContext):
     await menu_principal(update, context)
 
@@ -213,12 +209,10 @@ async def start(update: Update, context: CallbackContext):
 def main():
     print("🎙️ Bot de Pronúncia Iniciado...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VOICE, avaliar_pronuncia))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), menu_principal))
     app.add_handler(CallbackQueryHandler(botao_callback))
-
     app.run_polling()
 
 if __name__ == "__main__":
