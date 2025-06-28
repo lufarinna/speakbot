@@ -10,7 +10,6 @@ import random
 import re
 
 # --- Configuração de FFmpeg no Heroku ---
-# --- Configuração de FFmpeg no Heroku ---
 AudioSegment.converter = "ffmpeg"
 
 # --- Carrega variáveis do ambiente ---
