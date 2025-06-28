@@ -20,6 +20,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Adiciona o diretório do FFmpeg ao PATH
+# Adiciona o diretório do FFmpeg ao PATH.
 export PATH="$FFMPEG_DIR:$PATH"
 echo "-----> FFmpeg configurado com sucesso no PATH."
