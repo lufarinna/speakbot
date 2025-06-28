@@ -1,9 +1,10 @@
+# NOVO CONTEÚDO PARA SEU webhook.py
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import os
 import sys
-from datetime import datetime # Importar datetime
+from datetime import datetime # IMPORTANTE: Adicione esta linha!
 
 app = Flask(__name__)
 
@@ -45,7 +46,6 @@ def kiwify_webhook():
             print("⚠️ Nenhum dado recebido no corpo da requisição.")
             return jsonify({"error": "Invalid data"}), 400
 
-        # Mapeia todos os campos relevantes enviados pela Kiwify
         customer_email = data.get('customer_email')
         status = data.get('status')
         product_id = data.get('product_id')
@@ -85,6 +85,6 @@ def kiwify_webhook():
         print(f"❌ ERRO no processamento do webhook: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-# O Heroku/Gunicorn gerencia a execução do app, então 'if __name__ == "__main__":'
-# não é estritamente necessário para o deploy, mas manter para testes locais não prejudica.
-# app.run(debug=True)
+# Remova ou comente este bloco:
+# if __name__ == '__main__':
+#     app.run(debug=True)
