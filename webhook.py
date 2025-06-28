@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import os
 import sys
-from datetime import datetime # IMPORTANTE: Adicione esta linha!
+from datetime import datetime # IMPORTANTE: Adicione esta linha!-
 
 app = Flask(__name__)
 
