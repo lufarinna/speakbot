@@ -5,4 +5,3 @@ flask
 google-generativeai
 pymongo
 gunicorn
-dummy-package-for-rebuild==1.0 # Linha temporária
