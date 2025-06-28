@@ -1,2 +1,2 @@
-web: gunicorn webhook:app --log-file -
-worker: python SpeakTrainer_2.py
+web: curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar xJ && mv ffmpeg-*-amd64-static/* /app/bin/ && rm -rf ffmpeg-*-amd64-static && gunicorn webhook:app --log-file -
+worker: curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar xJ && mv ffmpeg-*-amd64-static/* /app/bin/ && rm -rf ffmpeg-*-amd64-static && python SpeakTrainer_2.py
