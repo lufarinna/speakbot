@@ -1,10 +1,9 @@
-# NOVO CONTEÚDO PARA SEU webhook.py
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import os
 import sys
-from datetime import datetime # IMPORTANTE: Adicione esta linha!-
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -70,7 +69,7 @@ def kiwify_webhook():
             "subscription_status": subscription_status,
             "customer_name": customer_name,
             "customer_phone": customer_phone,
-            "last_updated": datetime.utcnow() # Adicionado para auditoria
+            "last_updated": datetime.utcnow()
         }
 
         collection.update_one(
@@ -85,6 +84,6 @@ def kiwify_webhook():
         print(f"❌ ERRO no processamento do webhook: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-# Remova ou comente este bloco:
-# if __name__ == '__main__':
-#     app.run(debug=True)
+# Adicione esta parte para o Heroku
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

@@ -1,22 +1,31 @@
 import os
 import asyncio
-import subprocess # Adicionado para chamar o FFmpeg diretamente
+import subprocess
 from telegram import Update, Voice, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, CallbackContext
 import google.generativeai as genai
-# from pydub import AudioSegment # Linha removida/comentada para não usar pydub
 from dotenv import load_dotenv
 from gtts import gTTS
-import random
 import re
+import sys
 
-# --- Configuração de FFmpeg (agora será chamado via subprocess, não pydub) ---
-# AudioSegment.converter = "ffmpeg" # Linha removida/comentada, pois era da pydub
+# --- Verificação inicial do FFmpeg ---
+try:
+    subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True)
+    print("✅ FFmpeg está instalado e funcionando")
+except Exception as e:
+    print(f"❌ Erro ao verificar FFmpeg: {e}")
+    print("Por favor, instale FFmpeg no seu sistema")
+    sys.exit(1)
 
 # --- Carrega variáveis do ambiente ---
 load_dotenv(dotenv_path=".env")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if not TELEGRAM_TOKEN or not GOOGLE_API_KEY:
+    print("❌ Erro: TELEGRAM_TOKEN ou GOOGLE_API_KEY não encontrados no arquivo .env")
+    sys.exit(1)
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -101,58 +110,50 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
     ogg_path = f"voz_{user.id}.ogg"
     wav_path = f"voz_{user.id}.wav"
 
-    voice_file = await voice.get_file()
-    await voice_file.download_to_drive(ogg_path)
-
     try:
-        # Bloco de conversão de áudio usando subprocess para chamar FFmpeg diretamente
-        # Comando FFmpeg para converter OGG para WAV
-        # Adicionadas flags -nostats e -threads 1 para tentar resolver problemas de dependência
+        # Baixa o arquivo de voz
+        voice_file = await voice.get_file()
+        await voice_file.download_to_drive(ogg_path)
+
+        # Comando FFmpeg simplificado para conversão
         command = [
-            "ffmpeg", 
-            "-i", ogg_path, 
-            "-acodec", "pcm_s16le", 
-            "-ar", "16000", 
-            "-nostats", # Adicionado para reduzir mensagens de status
-            "-threads", "1", # Adicionado para especificar uso de um thread
+            "ffmpeg",
+            "-i", ogg_path,
+            "-acodec", "pcm_s16le",
+            "-ar", "16000",
+            "-ac", "1",
+            "-y",  # Sobrescreve se existir
             wav_path
         ]
         
-        # Executa o comando FFmpeg de forma assíncrona
+        # Executa o FFmpeg
         process = await asyncio.create_subprocess_exec(
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        # Aguarda a conclusão do processo e captura a saída/erro
+        
         stdout, stderr = await process.communicate()
 
-        # Verifica se o FFmpeg retornou um erro
         if process.returncode != 0:
-            # Inclui o stderr completo para depuração
-            raise Exception(f"FFmpeg falhou com erro: {stderr.decode()}")
-        print(f"✅ Áudio convertido de OGG para WAV com FFmpeg via subprocess.")
+            raise Exception(f"FFmpeg error: {stderr.decode()}")
+        
+        print("✅ Áudio convertido com sucesso")
 
-    except Exception as e:
-        await update.message.reply_text(f"❌ Erro ao processar o áudio com FFmpeg: {e}")
-        if os.path.exists(ogg_path):
-            os.remove(ogg_path)
-        return
+        # Processa a avaliação
+        frase_original = context.user_data["frase"]
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
-    frase_original = context.user_data["frase"]
-    model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt_text = (
+            f"AVALIE a pronúncia do usuário para a frase em inglês: '{frase_original}'.\n\n"
+            "Forneça:\n"
+            "1. Uma avaliação geral de 1 a 5 estrelas ⭐.\n"
+            "2. Pontos específicos para melhorar (fonemas, entonação).\n"
+            "3. Uma transcrição fonética **simplificada** com sons do português.\n"
+            "4. Uma transcrição textual do que foi ouvido.\n\n"
+            "Use **negrito** para destacar. Seja motivador e direto."
+        )
 
-    prompt_text = (
-        f"AVALIE a pronúncia do usuário para a frase em inglês: '{frase_original}'.\n\n"
-        "Forneça:\n"
-        "1. Uma avaliação geral de 1 a 5 estrelas ⭐.\n"
-        "2. Pontos específicos para melhorar (fonemas, entonação).\n"
-        "3. Uma transcrição fonética **simplificada** com sons do português.\n"
-        "4. Uma transcrição textual do que foi ouvido.\n\n"
-        "Use **negrito** para destacar. Seja motivador e direto."
-    )
-
-    try:
         await update.message.reply_text("🤖 Analisando sua pronúncia... Aguarde só um instante!")
         audio_part = genai.upload_file(wav_path, mime_type="audio/wav")
         response = model.generate_content([prompt_text, audio_part])
@@ -193,11 +194,17 @@ async def avaliar_pronuncia(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text("O que deseja fazer agora?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Erro na avaliação: {str(e)[:200]}")
+        error_msg = str(e)[:200]
+        print(f"❌ Erro: {error_msg}")
+        await update.message.reply_text(f"❌ Ocorreu um erro: {error_msg}")
     finally:
+        # Limpeza dos arquivos temporários
         for path in [ogg_path, wav_path]:
             if os.path.exists(path):
-                os.remove(path)
+                try:
+                    os.remove(path)
+                except:
+                    pass
 
 # --- Callback de botões ---
 async def botao_callback(update: Update, context: CallbackContext):
