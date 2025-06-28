@@ -1,7 +1,8 @@
-python-telegram-bot==20.7
+python-telegram-bot
 gTTS
 python-dotenv
 flask
 google-generativeai
 pymongo
 gunicorn
+dummy-package-for-rebuild==1.0 # Linha temporária
