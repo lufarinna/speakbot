@@ -53,8 +53,8 @@ def kiwify_webhook():
         price = data.get('price')
         purchase_date = data.get('purchase_date')
         subscription_status = data.get('subscription_status')
-        customer_name = data.get('customer_name')
-        customer_phone = data.get('customer_phone')
+        customer_name = customer_data.get('full_name') # O JSON usa 'full_name'
+        customer_phone = customer_data.get('mobile') # Verifique na documentação da Kiwify o nome correto do campo de telefone (pode ser 'phone' ou 'mobile')
 
         if not customer_email:
             print("⚠️ Webhook recebido sem 'customer_email'. Ignorando.")
