@@ -45,7 +45,8 @@ def kiwify_webhook():
             print("⚠️ Nenhum dado recebido no corpo da requisição.")
             return jsonify({"error": "Invalid data"}), 400
 
-        customer_email = data.get('customer_email')
+        customer_data = data.get('customer', {}) # Pega o objeto 'customer' de forma segura
+        customer_email = customer_data.get('email')
         status = data.get('status')
         product_id = data.get('product_id')
         product_name = data.get('product_name')
