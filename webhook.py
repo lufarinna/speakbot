@@ -35,7 +35,7 @@ db = client["speakTrainer"]
 collection = db["usuarios_autorizados"]
 
 # --- Rotas da Aplicação ---
-@app.route('/kiwify', methods=['POST'])
+@app.route('/kiwify-hook', methods=['POST'])
 def kiwify_webhook():
     try:
         data = request.get_json()
